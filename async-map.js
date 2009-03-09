@@ -24,26 +24,32 @@
 // ONI VERSION
 
 /**
- * EachWith(Par, F, [a,b,...]) -> Par(F(a), F(b), ...)
- * EachWith(Seq, F, [a,b,...]) -> Seq(F(a), F(b), ...)
+ * EachWith(Par)(F, [a,b,...]) -> Par(F(a), F(b), ...)
+ * EachWith(Seq)(F, [a,b,...]) -> Seq(F(a), F(b), ...)
  */
-var EachWith = function(Combinator, F, arr) {
-  return Combinator.apply(this, arr.map(F));
+var EachWith = function(Combinator) {
+  return function(F, arr) { return Combinator.apply(this, arr.map(F)); };
 };
+var ParEach = EachWith(Par);
+var SeqEach = EachWith(Seq);
 
 /**
- * MapWith(Combinator, F, [a,b,...]).run() -> [<F(a)>, <F(b)>, ...]
+ * MapWith(Combinator)(F, [a,b,...]).run() -> [<F(a)>, <F(b)>, ...]
  *
  * "Combinator" can be Par (to call F in parallel) or Seq (to call F sequentially).
  */
-var MapWith = function(Combinator, F, arr) {
-  return Let({ result: [], arr: arr },
-    Seq(
-      EachWith(Combinator,
-        Lambda(['i'], SetAt('result', 'i', F(GetAt('arr', 'i')))),
-        range(arr.length)),
-      Get('result')));
+var MapWith = function(Combinator) {
+  return function(F, arr) {
+    return Let({ result: [], arr: arr },
+      Seq(
+        EachWith(Combinator)(
+          Lambda(['i'], SetAt('result', 'i', F(GetAt('arr', 'i')))),
+          range(arr.length)),
+        Get('result')));
+  };
 };
+var ParMap = MapWith(Par);
+var SeqMap = MapWith(Seq);
 
 var GetAt = function(arr_var, i_var) {
   return Apply(SLift(get_at), Get(arr_var), Get(i_var));
@@ -125,19 +131,19 @@ map_seq(function(x, next) { next(2*x); }, [0,1,2,3,4,5], function(result) {
   (result[0] == 0 && result[5] == 5) || alert("each_seq failed");
 })();
 
-EachWith(Par, Print, [0,1,2,3,4,5]).run();
-EachWith(Seq, Print, [0,1,2,3,4,5]).run();
+ParEach(Print, [0,1,2,3,4,5]).run();
+SeqEach(Print, [0,1,2,3,4,5]).run();
 
 // TIMING TESTS
 
 Seq(
   Timer(),
-  Print(MapWith(Par, Square,  [0,1,2,3,4,5])),
+  Print(ParMap(Square,  [0,1,2,3,4,5])),
   Timer("MapWith Par Square"),
-  Print(MapWith(Par, ASquare, [0,1,2,3,4,5])),
+  Print(ParMap(ASquare, [0,1,2,3,4,5])),
   Timer("MapWith Par ASquare"),
-  Print(MapWith(Seq, Square,  [0,1,2,3,4,5])),
+  Print(SeqMap(Square,  [0,1,2,3,4,5])),
   Timer("MapWith Seq Square"),
-  Print(MapWith(Seq, ASquare, [0,1,2,3,4,5])),
+  Print(SeqMap(ASquare, [0,1,2,3,4,5])),
   Timer("MapWith Seq ASquare")
 ).run();
